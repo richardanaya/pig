@@ -1,7 +1,11 @@
 [package]
 name = "pig"
-version = "0.1.0"
+description = "A very simple PostgreSQL data migration tool."
+version = "0.0.1"
 authors = ["richardanaya"]
+license = "MIT"
+repository = "https://github.com/richardanaya/pig"
+
 
 [dependencies]
 quicli = "0.3"
