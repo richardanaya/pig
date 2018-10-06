@@ -1,5 +1,8 @@
 #[macro_use]
 extern crate quicli;
+extern crate postgres;
+
+use postgres::{Connection, TlsMode};
 use quicli::prelude::*;
 use std::env;
 
@@ -90,15 +93,23 @@ fn get_connection_string(connection_string_opt: Option<String>) -> Result<String
     }
 }
 
-fn apply(connection_string_opt: Option<String>) -> Result<()> {
+fn get_connection(connection_string_opt: Option<String>) -> Result<Connection> {
     let connection_string = get_connection_string(connection_string_opt)?;
+    Ok(Connection::connect(connection_string, TlsMode::None)?)
+}
+
+fn apply(connection_string_opt: Option<String>) -> Result<()> {
+    let conn = get_connection(connection_string_opt)?;
     println!("applying ");
     Ok(())
 }
 
 fn show_tables(connection_string_opt: Option<String>) -> Result<()> {
-    let connection_string = get_connection_string(connection_string_opt)?;
-    println!("show tables");
+    let conn = get_connection(connection_string_opt)?;
+    for row in &conn.query("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'", &[]).unwrap() {
+        let table_name:String = row.get(0);
+        println!("{}",table_name);
+    };
     Ok(())
 }
 
@@ -109,13 +120,13 @@ fn show_table(connection_string_opt: Option<String>, table_name: String) -> Resu
 }
 
 fn generate(connection_string_opt: Option<String>) -> Result<()> {
-    let connection_string = get_connection_string(connection_string_opt)?;
+    let conn = get_connection(connection_string_opt)?;
     println!("generate ");
     Ok(())
 }
 
 fn plan(connection_string_opt: Option<String>) -> Result<()> {
-    let connection_string = get_connection_string(connection_string_opt)?;
+    let conn = get_connection(connection_string_opt)?;
     println!("generate ");
     Ok(())
 }
