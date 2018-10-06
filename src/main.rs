@@ -21,11 +21,8 @@ enum Command {
         about = "Show information about the database."
     )]
     Show {
-        #[structopt(
-            help = "The connection string to use. The environment variable PIG_CONNECTION_STRING can also be used.",
-            short = "c"
-        )]
-        connection_string: Option<String>,
+        #[structopt(subcommand)]
+        command: ShowCommand,
     },
 
     #[structopt(name = "generate", about = "Generate migration scripts.")]
@@ -56,6 +53,30 @@ enum Command {
     },
 }
 
+#[derive(Debug, StructOpt)]
+enum ShowCommand {
+    #[structopt(name = "tables", about = "Show all tables..")]
+    Tables {
+        #[structopt(
+            help = "The connection string to use. The environment variable PIG_CONNECTION_STRING can also be used.",
+            short = "c"
+        )]
+        connection_string: Option<String>,
+    },
+    #[structopt(name = "table", about = "Show table details")]
+    Table {
+        #[structopt(
+            help = "The connection string to use. The environment variable PIG_CONNECTION_STRING can also be used.",
+            short = "c"
+        )]
+        connection_string: Option<String>,
+        #[structopt(
+            help = "The table to show information on.",
+        )]
+        table_name: String,
+    }
+}
+
 fn get_connection_string(connection_string_opt: Option<String>) -> Result<String> {
     match connection_string_opt {
         Some(s) => return Ok(s.to_owned()),
@@ -75,9 +96,15 @@ fn apply(connection_string_opt: Option<String>) -> Result<()> {
     Ok(())
 }
 
-fn show(connection_string_opt: Option<String>) -> Result<()> {
+fn show_tables(connection_string_opt: Option<String>) -> Result<()> {
     let connection_string = get_connection_string(connection_string_opt)?;
-    println!("show ");
+    println!("show tables");
+    Ok(())
+}
+
+fn show_table(connection_string_opt: Option<String>, table_name: String) -> Result<()> {
+    let connection_string = get_connection_string(connection_string_opt)?;
+    println!("show table");
     Ok(())
 }
 
@@ -96,6 +123,9 @@ fn plan(connection_string_opt: Option<String>) -> Result<()> {
 main!(|args: Cli| match args.command {
     Command::Apply { connection_string } => apply(connection_string)?,
     Command::Generate { connection_string } => generate(connection_string)?,
-    Command::Show { connection_string } => show(connection_string)?,
+    Command::Show { command } => match command {
+        ShowCommand::Tables { connection_string } => show_tables(connection_string)?,
+        ShowCommand::Table { connection_string, table_name } => show_table(connection_string,table_name)?
+    },
     Command::Plan { connection_string } => plan(connection_string)?,
 });
