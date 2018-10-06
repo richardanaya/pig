@@ -4,7 +4,7 @@ This tool was created to simplify working with PostgreSQL for every day developm
 
 # Example Usage
 
-```console
+```bash
 export PIG_CONNECTION_STRING="<your secret connection string>"
 pig create "My first migration" # Create a migration
 pig modify add-table people     # Generates code to apply/revert people table
