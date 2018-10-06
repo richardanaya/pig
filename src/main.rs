@@ -73,11 +73,9 @@ enum ShowCommand {
             short = "c"
         )]
         connection_string: Option<String>,
-        #[structopt(
-            help = "The table to show information on.",
-        )]
+        #[structopt(help = "The table to show information on.",)]
         table_name: String,
-    }
+    },
 }
 
 fn get_connection_string(connection_string_opt: Option<String>) -> Result<String> {
@@ -136,7 +134,10 @@ main!(|args: Cli| match args.command {
     Command::Generate { connection_string } => generate(connection_string)?,
     Command::Show { command } => match command {
         ShowCommand::Tables { connection_string } => show_tables(connection_string)?,
-        ShowCommand::Table { connection_string, table_name } => show_table(connection_string,table_name)?
+        ShowCommand::Table {
+            connection_string,
+            table_name,
+        } => show_table(connection_string, table_name)?,
     },
     Command::Plan { connection_string } => plan(connection_string)?,
 });
