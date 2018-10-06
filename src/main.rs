@@ -149,20 +149,29 @@ fn apply(connection_string_opt: Option<String>) -> Result<()> {
         sql.push_str(&contents);
         sql.push_str("\n");
     }
-    println!("{}", format!("Applying {} files:",project_files.len()).green());
+    println!(
+        "{}",
+        format!("Applying {} files:", project_files.len()).green()
+    );
     if project_files.len() > 0 {
         println!("Beginning transaction");
         let trans = conn.transaction()?;
         let commands: Vec<&str> = sql.split(';').collect();
         for command in commands.iter() {
-            trans.execute(command,&[])?;
+            trans.execute(command, &[])?;
         }
-        let last_date:String =  project_files[project_files.len()-1].date.format("%Y%m%d%H%M%S").to_string();
-        trans.execute("UPDATE pig_database_info SET value=$1 WHERE key='last_applied';",&[&last_date])?;
+        let last_date: String = project_files[project_files.len() - 1]
+            .date
+            .format("%Y%m%d%H%M%S")
+            .to_string();
+        trans.execute(
+            "UPDATE pig_database_info SET value=$1 WHERE key='last_applied';",
+            &[&last_date],
+        )?;
         trans.commit()?;
         println!("Transaction committed");
     }
-    println!("{}","Complete".green());
+    println!("{}", "Complete".green());
     Ok(())
 }
 
@@ -215,9 +224,12 @@ fn plan(connection_string_opt: Option<String>) -> Result<()> {
         println!("{}", "SQL:".green());
         println!("{}", sql);
     }
-    println!("{}",format!("Plan: {} to apply", project_files.len()).green());
+    println!(
+        "{}",
+        format!("Plan: {} to apply", project_files.len()).green()
+    );
     for project_file in project_files.iter() {
-        println!("    {} {}", "+".green(),project_file.file.green());
+        println!("    {} {}", "+".green(), project_file.file.green());
     }
     Ok(())
 }
