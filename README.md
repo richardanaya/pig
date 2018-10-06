@@ -1,4 +1,4 @@
-# pig 🐷
+# Pig 🐷
 
 This tool was created to simplify working with PostgreSQL for every day development tasks. Common tasks like creating simple migrations, applying/reverting them, and seeing whats in a database should be easy to do.
 
@@ -9,9 +9,9 @@ export PIG_CONNECTION_STRING="<your secret connection string>"
 
 # Create a migration
 pig create "My first migration"
-# Generates code to apply/revert people table
+# Add SQL to apply/revert people table to latest migration
 pig modify add-table people     
-# Generates code to apply/revert name column
+# Add SQL to apply/revert name column to latest migration
 pig modify add-column name TEXT
 # See whats going to be applied
 pig plan                        
