@@ -12,5 +12,5 @@ pig modify add-column name TEXT # Generates code to apply/revert name column
 pig plan                        # See whats going to be applied
 pig apply                       # Apply migrations in current directory
 pig plan                        # Should see nothing to apply
-pig revert                      # Revert
+pig rollback                    # Rollback last migration
 ```
