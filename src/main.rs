@@ -1,7 +1,10 @@
 #[macro_use]
 extern crate quicli;
-extern crate postgres;
+extern crate postgres;extern crate chrono;
 
+use std::fs::File;
+use std::io::prelude::*;
+use chrono::Local;
 use postgres::{Connection, TlsMode};
 use quicli::prelude::*;
 use std::env;
@@ -28,13 +31,9 @@ enum Command {
         command: ShowCommand,
     },
 
-    #[structopt(name = "generate", about = "Generate migration scripts.")]
-    Generate {
-        #[structopt(
-            help = "The connection string to use. The environment variable PIG_CONNECTION_STRING can also be used.",
-            short = "c"
-        )]
-        connection_string: Option<String>,
+    #[structopt(name = "create", about = "Create a new migration script.")]
+    Create {
+        description: String,
     },
 
     #[structopt(name = "plan", about = "Plan migration scripts.")]
@@ -120,9 +119,14 @@ fn show_table(connection_string_opt: Option<String>, table_name: String) -> Resu
     Ok(())
 }
 
-fn generate(connection_string_opt: Option<String>) -> Result<()> {
-    let conn = get_connection(connection_string_opt)?;
-    println!("generate ");
+fn create(description: String) -> Result<()> {
+    let date = Local::now();
+    let mut file_description = description.to_lowercase().replace(" ","_");
+    file_description.truncate(30);
+    let filename = format!("{}_{}.sql",date.format("%Y%m%d%H%M%S"),file_description);
+    println!("creating migration {}", filename);
+    let mut file = File::create(filename)?;
+    file.write_all(format!("# {}\n\n",description).as_bytes())?;
     Ok(())
 }
 
@@ -134,7 +138,7 @@ fn plan(connection_string_opt: Option<String>) -> Result<()> {
 
 main!(|args: Cli| match args.command {
     Command::Apply { connection_string } => apply(connection_string)?,
-    Command::Generate { connection_string } => generate(connection_string)?,
+    Command::Create { description } => create(description)?,
     Command::Show { command } => match command {
         ShowCommand::Tables { connection_string } => show_tables(connection_string)?,
         ShowCommand::Table {

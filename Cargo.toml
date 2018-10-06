@@ -10,3 +10,4 @@ repository = "https://github.com/richardanaya/pig"
 [dependencies]
 quicli = "0.3"
 postgres = "0.15"
+chrono = "0.4.6"
