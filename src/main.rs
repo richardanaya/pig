@@ -82,8 +82,7 @@ fn get_connection_string(connection_string_opt: Option<String>) -> Result<String
     match connection_string_opt {
         Some(s) => return Ok(s.to_owned()),
         _ => {
-            let connection_string_env_opt = env::var_os("PIG_CONNECTION_STRING");
-            let connection_string_env = match connection_string_env_opt {
+            match env::var_os("PIG_CONNECTION_STRING") {
                 Some(e) => return Ok(e.into_string().unwrap()),
                 _ => return Err(format_err!("No connection string found, try -c <connection string> or set the environment variable PIG_CONNECTION_STRING.")),
             };
@@ -112,8 +111,12 @@ fn show_tables(connection_string_opt: Option<String>) -> Result<()> {
 }
 
 fn show_table(connection_string_opt: Option<String>, table_name: String) -> Result<()> {
-    let connection_string = get_connection_string(connection_string_opt)?;
-    println!("show table");
+    let conn = get_connection(connection_string_opt)?;
+    for row in &conn.query(&format!("SELECT column_name, data_type FROM information_schema.columns WHERE table_name   = '{}'",table_name), &[]).unwrap() {
+        let column_name:String = row.get(0);
+        let data_type:String = row.get(1);
+        println!("{} : {}",column_name, data_type);
+    };
     Ok(())
 }
 
