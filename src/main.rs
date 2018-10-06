@@ -1,13 +1,14 @@
 #[macro_use]
 extern crate quicli;
-extern crate postgres;extern crate chrono;
+extern crate chrono;
+extern crate postgres;
 
-use std::fs::File;
-use std::io::prelude::*;
 use chrono::Local;
 use postgres::{Connection, TlsMode};
 use quicli::prelude::*;
 use std::env;
+use std::fs::File;
+use std::io::prelude::*;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -32,9 +33,7 @@ enum Command {
     },
 
     #[structopt(name = "create", about = "Create a new migration script.")]
-    Create {
-        description: String,
-    },
+    Create { description: String },
 
     #[structopt(name = "plan", about = "Plan migration scripts.")]
     Plan {
@@ -94,8 +93,30 @@ fn get_connection(connection_string_opt: Option<String>) -> Result<Connection> {
     Ok(Connection::connect(connection_string, TlsMode::None)?)
 }
 
+fn ensure_database_info(conn: Connection) -> Result<()> {
+    let rows = &conn.query("SELECT EXISTS ( SELECT 1 FROM information_schema.tables WHERE table_name = 'pig_database_info');", &[])?;
+    let info_exists: bool = rows.iter().next().unwrap().get(0);
+    if !info_exists {
+        conn.execute("CREATE TABLE IF NOT EXISTS pig_database_info ()", &[])?;
+        conn.execute(
+            "ALTER TABLE pig_database_info ADD COLUMN IF NOT EXISTS key TEXT",
+            &[],
+        )?;
+        conn.execute(
+            "ALTER TABLE pig_database_info ADD COLUMN IF NOT EXISTS value TEXT",
+            &[],
+        )?;
+        conn.execute(
+            r#"INSERT INTO pig_database_info (key,value) VALUES ('last_applied','')"#,
+            &[],
+        )?;
+    }
+    Ok(())
+}
+
 fn apply(connection_string_opt: Option<String>) -> Result<()> {
     let conn = get_connection(connection_string_opt)?;
+    ensure_database_info(conn)?;
     println!("applying ");
     Ok(())
 }
@@ -121,18 +142,18 @@ fn show_table(connection_string_opt: Option<String>, table_name: String) -> Resu
 
 fn create(description: String) -> Result<()> {
     let date = Local::now();
-    let mut file_description = description.to_lowercase().replace(" ","_");
+    let mut file_description = description.to_lowercase().replace(" ", "_");
     file_description.truncate(30);
-    let filename = format!("{}_{}.sql",date.format("%Y%m%d%H%M%S"),file_description);
-    println!("creating migration {}", filename);
+    let filename = format!("{}_{}.sql", date.format("%Y%m%d%H%M%S"), file_description);
+    println!("{}", filename);
     let mut file = File::create(filename)?;
-    file.write_all(format!("# {}\n\n",description).as_bytes())?;
+    file.write_all(format!("# {}\n\n", description).as_bytes())?;
     Ok(())
 }
 
 fn plan(connection_string_opt: Option<String>) -> Result<()> {
     let conn = get_connection(connection_string_opt)?;
-    println!("generate ");
+    println!("plan ");
     Ok(())
 }
 
