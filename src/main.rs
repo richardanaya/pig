@@ -1,11 +1,16 @@
 #[macro_use]
 extern crate quicli;
 extern crate chrono;
+extern crate colored;
+extern crate glob;
 extern crate postgres;
 
-use chrono::{Local,Utc,TimeZone,DateTime};
+use chrono::{DateTime, Local, TimeZone, Utc};
+use colored::*;
+use glob::glob;
 use postgres::{Connection, TlsMode};
 use quicli::prelude::*;
+use std::cmp::Ordering;
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -119,11 +124,11 @@ fn get_pig_key_value(conn: &Connection, key: String) -> Result<String> {
     Ok(rows.iter().next().unwrap().get(0))
 }
 
-fn get_last_applied(conn: &Connection) -> Result<DateTime<Utc>>{
-    let last_applied = get_pig_key_value(conn,"last_applied".to_owned())?;
+fn get_last_applied(conn: &Connection) -> Result<DateTime<Utc>> {
+    let last_applied = get_pig_key_value(conn, "last_applied".to_owned())?;
     let mut last_applied_date = Utc.datetime_from_str(&"19700101000000", "%Y%m%d%H%M%S")?;
     if !last_applied.is_empty() {
-        let date_str:String = last_applied.chars().take(14).collect();
+        let date_str: String = last_applied.chars().take(14).collect();
         last_applied_date = Utc.datetime_from_str(&date_str, "%Y%m%d%H%M%S")?
     }
     Ok(last_applied_date)
@@ -132,7 +137,28 @@ fn get_last_applied(conn: &Connection) -> Result<DateTime<Utc>>{
 fn apply(connection_string_opt: Option<String>) -> Result<()> {
     let conn = get_connection(connection_string_opt)?;
     ensure_database_info(&conn)?;
-    println!("applying ");
+    let last_applied = get_last_applied(&conn)?;
+    let mut project_files = get_project_files().unwrap();
+    project_files.sort();
+    project_files.retain(|ref i| i.date > last_applied);
+    let mut sql = String::new();
+    for project_file in project_files.iter() {
+        let mut file = File::open(&project_file.file)?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+        sql.push_str(&contents);
+        sql.push_str("\n");
+    }
+    println!("{}", format!("Applying {} files:",project_files.len()).green());
+    println!("Beginning transaction");
+    let trans = conn.transaction()?;
+    let commands: Vec<&str> = sql.split(';').collect();
+    for command in commands.iter() {
+        trans.execute(command,&[])?;
+    }
+    trans.commit()?;
+    println!("Transaction committed");
+    println!("{}","Complete".green());
     Ok(())
 }
 
@@ -162,7 +188,7 @@ fn create(description: String) -> Result<()> {
     let filename = format!("{}_{}.sql", date.format("%Y%m%d%H%M%S"), file_description);
     println!("{}", filename);
     let mut file = File::create(filename)?;
-    file.write_all(format!("# {}\n\n", description).as_bytes())?;
+    file.write_all(format!("-- {}\n\n", description).as_bytes())?;
     Ok(())
 }
 
@@ -170,8 +196,75 @@ fn plan(connection_string_opt: Option<String>) -> Result<()> {
     let conn = get_connection(connection_string_opt)?;
     ensure_database_info(&conn)?;
     let last_applied = get_last_applied(&conn)?;
-    println!("{:?}",last_applied);
+    let mut project_files = get_project_files().unwrap();
+    project_files.sort();
+    project_files.retain(|ref i| i.date > last_applied);
+    let mut sql = String::new();
+    for project_file in project_files.iter() {
+        let mut file = File::open(&project_file.file)?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+        sql.push_str(&contents);
+        sql.push_str("\n");
+    }
+    if project_files.len() != 0 {
+        println!("{}", "SQL:".green());
+        println!("{}", sql);
+    }
+    println!("{}",format!("Plan: {} to apply", project_files.len()).green());
+    for project_file in project_files.iter() {
+        println!("    {} {}", "+".green(),project_file.file.green());
+    }
     Ok(())
+}
+
+#[derive(Debug, Eq)]
+struct ProjectFile {
+    file: String,
+    date: DateTime<Utc>,
+}
+
+impl Ord for ProjectFile {
+    fn cmp(&self, other: &ProjectFile) -> Ordering {
+        self.date.cmp(&other.date)
+    }
+}
+
+impl PartialOrd for ProjectFile {
+    fn partial_cmp(&self, other: &ProjectFile) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for ProjectFile {
+    fn eq(&self, other: &ProjectFile) -> bool {
+        self.date == other.date
+    }
+}
+
+fn get_project_files() -> Result<Vec<ProjectFile>> {
+    let mut files = Vec::<ProjectFile>::new();
+    for entry in glob("*.sql").expect("Failed to read glob pattern") {
+        match entry {
+            Ok(path) => {
+                if path.is_file() {
+                    let file_name: String = path.file_name().unwrap().to_str().unwrap().to_owned();
+                    let date_prefix: String = file_name.chars().take(14).collect();
+                    match Utc.datetime_from_str(&date_prefix, "%Y%m%d%H%M%S") {
+                        Ok(date) => {
+                            files.push(ProjectFile {
+                                file: file_name,
+                                date: date,
+                            });
+                        }
+                        _ => println!("Unknown SQL file: {:?}", file_name),
+                    }
+                }
+            }
+            Err(e) => println!("{:?}", e),
+        }
+    }
+    Ok(files)
 }
 
 main!(|args: Cli| match args.command {
