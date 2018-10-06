@@ -150,14 +150,18 @@ fn apply(connection_string_opt: Option<String>) -> Result<()> {
         sql.push_str("\n");
     }
     println!("{}", format!("Applying {} files:",project_files.len()).green());
-    println!("Beginning transaction");
-    let trans = conn.transaction()?;
-    let commands: Vec<&str> = sql.split(';').collect();
-    for command in commands.iter() {
-        trans.execute(command,&[])?;
+    if project_files.len() > 0 {
+        println!("Beginning transaction");
+        let trans = conn.transaction()?;
+        let commands: Vec<&str> = sql.split(';').collect();
+        for command in commands.iter() {
+            trans.execute(command,&[])?;
+        }
+        let last_date:String =  project_files[project_files.len()-1].date.format("%Y%m%d%H%M%S").to_string();
+        trans.execute("UPDATE pig_database_info SET value=$1 WHERE key='last_applied';",&[&last_date])?;
+        trans.commit()?;
+        println!("Transaction committed");
     }
-    trans.commit()?;
-    println!("Transaction committed");
     println!("{}","Complete".green());
     Ok(())
 }
