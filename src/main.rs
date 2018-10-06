@@ -12,7 +12,7 @@ use std::io::prelude::*;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
-    name = "🐷 Pig",
+    name = "Pig",
     about = "A very simple PostgreSQL data migration tool.",
     author = "Richard Anaya © 2018"
 )]
