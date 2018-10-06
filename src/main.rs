@@ -3,7 +3,7 @@ extern crate quicli;
 extern crate chrono;
 extern crate postgres;
 
-use chrono::Local;
+use chrono::{Local,Utc,TimeZone,DateTime};
 use postgres::{Connection, TlsMode};
 use quicli::prelude::*;
 use std::env;
@@ -93,7 +93,7 @@ fn get_connection(connection_string_opt: Option<String>) -> Result<Connection> {
     Ok(Connection::connect(connection_string, TlsMode::None)?)
 }
 
-fn ensure_database_info(conn: Connection) -> Result<()> {
+fn ensure_database_info(conn: &Connection) -> Result<()> {
     let rows = &conn.query("SELECT EXISTS ( SELECT 1 FROM information_schema.tables WHERE table_name = 'pig_database_info');", &[])?;
     let info_exists: bool = rows.iter().next().unwrap().get(0);
     if !info_exists {
@@ -114,9 +114,24 @@ fn ensure_database_info(conn: Connection) -> Result<()> {
     Ok(())
 }
 
+fn get_pig_key_value(conn: &Connection, key: String) -> Result<String> {
+    let rows = &conn.query("SELECT value FROM pig_database_info WHERE key=$1", &[&key])?;
+    Ok(rows.iter().next().unwrap().get(0))
+}
+
+fn get_last_applied(conn: &Connection) -> Result<DateTime<Utc>>{
+    let last_applied = get_pig_key_value(conn,"last_applied".to_owned())?;
+    let mut last_applied_date = Utc.datetime_from_str(&"19700101000000", "%Y%m%d%H%M%S")?;
+    if !last_applied.is_empty() {
+        let date_str:String = last_applied.chars().take(14).collect();
+        last_applied_date = Utc.datetime_from_str(&date_str, "%Y%m%d%H%M%S")?
+    }
+    Ok(last_applied_date)
+}
+
 fn apply(connection_string_opt: Option<String>) -> Result<()> {
     let conn = get_connection(connection_string_opt)?;
-    ensure_database_info(conn)?;
+    ensure_database_info(&conn)?;
     println!("applying ");
     Ok(())
 }
@@ -153,7 +168,9 @@ fn create(description: String) -> Result<()> {
 
 fn plan(connection_string_opt: Option<String>) -> Result<()> {
     let conn = get_connection(connection_string_opt)?;
-    println!("plan ");
+    ensure_database_info(&conn)?;
+    let last_applied = get_last_applied(&conn)?;
+    println!("{:?}",last_applied);
     Ok(())
 }
 
