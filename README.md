@@ -6,11 +6,19 @@ This tool was created to simplify working with PostgreSQL for every day developm
 
 ```bash
 export PIG_CONNECTION_STRING="<your secret connection string>"
-pig create "My first migration" # Create a migration
-pig modify add-table people     # Generates code to apply/revert people table
-pig modify add-column name TEXT # Generates code to apply/revert name column
-pig plan                        # See whats going to be applied
-pig apply                       # Apply migrations in current directory
-pig plan                        # Should see nothing to apply
-pig rollback                    # Rollback last migration
+
+# Create a migration
+pig create "My first migration"
+# Generates code to apply/revert people table
+pig modify add-table people     
+# Generates code to apply/revert name column
+pig modify add-column name TEXT
+# See whats going to be applied
+pig plan                        
+# Apply migrations in current directory
+pig apply                       
+# Should see nothing to apply
+pig plan                        
+# Rollback last migration
+pig rollback                    
 ```
