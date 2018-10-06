@@ -1,0 +1,8 @@
+[package]
+name = "pig"
+version = "0.1.0"
+authors = ["richardanaya"]
+
+[dependencies]
+quicli = "0.3"
+postgres = "0.15"
