@@ -1,4 +1,4 @@
-# Pig
+# pig 🐷
 
 This tool was created to simplify working with PostgreSQL for every day development tasks. Common tasks like creating simple migrations, applying/reverting them, and seeing whats in a database should be easy to do.
 
