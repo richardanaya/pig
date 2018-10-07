@@ -13,6 +13,7 @@ use quicli::prelude::*;
 use std::cmp::Ordering;
 use std::env;
 use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::prelude::*;
 
 #[derive(Debug, StructOpt)]
@@ -35,6 +36,15 @@ enum Command {
     Show {
         #[structopt(subcommand)]
         command: ShowCommand,
+    },
+
+    #[structopt(
+        name = "modify",
+        about = "Modify the current migration."
+    )]
+    Modify {
+        #[structopt(subcommand)]
+        command: ModifyCommand,
     },
 
     #[structopt(name = "create", about = "Create a new migration script.")]
@@ -61,7 +71,7 @@ enum Command {
 
 #[derive(Debug, StructOpt)]
 enum ShowCommand {
-    #[structopt(name = "tables", about = "Show all tables..")]
+    #[structopt(name = "tables", about = "Show all tables.")]
     Tables {
         #[structopt(
             help = "The connection string to use. The environment variable PIG_CONNECTION_STRING can also be used.",
@@ -69,7 +79,7 @@ enum ShowCommand {
         )]
         connection_string: Option<String>,
     },
-    #[structopt(name = "table", about = "Show table details")]
+    #[structopt(name = "table", about = "Show table details.")]
     Table {
         #[structopt(
             help = "The connection string to use. The environment variable PIG_CONNECTION_STRING can also be used.",
@@ -78,6 +88,30 @@ enum ShowCommand {
         connection_string: Option<String>,
         #[structopt(help = "The table to show information on.",)]
         table_name: String,
+    },
+}
+
+#[derive(Debug, StructOpt)]
+enum ModifyCommand {
+    #[structopt(name = "add-table", about = "Append an add table command to current migration.")]
+    AddTable {
+        #[structopt(
+            help = "The connection string to use. The environment variable PIG_CONNECTION_STRING can also be used.",
+            short = "c"
+        )]
+        connection_string: Option<String>,
+        table_name: String,
+    },
+    #[structopt(name = "add-column", about = "Append an add table column command to current migration.")]
+    AddColumn {
+        #[structopt(
+            help = "The connection string to use. The environment variable PIG_CONNECTION_STRING can also be used.",
+            short = "c"
+        )]
+        connection_string: Option<String>,
+        table_name: String,
+        column_name: String,
+        type_name: String,
     },
 }
 
@@ -158,6 +192,7 @@ fn apply(connection_string_opt: Option<String>) -> Result<()> {
         let trans = conn.transaction()?;
         let commands: Vec<&str> = sql.split(';').collect();
         for command in commands.iter() {
+            println!("{}",command);
             trans.execute(command, &[])?;
         }
         let last_date: String = project_files[project_files.len() - 1]
@@ -234,6 +269,65 @@ fn plan(connection_string_opt: Option<String>) -> Result<()> {
     Ok(())
 }
 
+fn append_to_latest_migration(conn:&Connection, sql:String) -> Result<()> {
+    let latest_project_file = get_latest_project_file()?;
+    match latest_project_file {
+        Some(file_name) => {
+            if !is_current_migration_unused(conn,&file_name)? {
+                println!("Current migration was already deployed. Create a new one.");
+                return Ok(());
+            }
+
+
+            let mut file = OpenOptions::new()
+                .write(true)
+                .append(true)
+                .open(file_name)
+                .unwrap();
+
+            file.write_all(format!("\n{}",sql).as_bytes())?;
+        },
+        None => println!("There are no migrations. Create one first.")
+    }
+    Ok(())
+}
+
+fn is_current_migration_unused(conn:&Connection, file_name:&String) -> Result<bool>{
+    let last_applied = get_last_applied(conn)?;
+    let date_prefix: String = file_name.chars().take(14).collect();
+    match Utc.datetime_from_str(&date_prefix, "%Y%m%d%H%M%S") {
+        Ok(date) => {
+            match date.cmp(&last_applied) {
+                Ordering::Greater => return  Ok(true),
+                _ => return Ok(false)
+            }
+        }
+        _ => println!("Unknown SQL file: {:?}", file_name),
+    }
+    Err(format_err!("Latest migration has invalid prefix."))
+}
+
+fn add_table(connection_string_opt: Option<String>,table_name: String) -> Result<()> {
+    let conn = get_connection(connection_string_opt)?;
+    let sql = format!("CREATE TABLE IF NOT EXISTS {} ();", table_name);
+    append_to_latest_migration(&conn,sql)?;
+    Ok(())
+}
+
+fn add_table_column(connection_string_opt: Option<String>,table_name: String, column_name: String, type_name: String) -> Result<()> {
+    let conn = get_connection(connection_string_opt)?;
+    let sql = format!("
+IF NOT EXISTS( SELECT NULL
+        FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE table_name = '{}'
+         AND column_name = '{}')  THEN
+         ALTER TABLE `{}` ADD `{}` {};
+END IF;
+    ", table_name, column_name, table_name, column_name, type_name);
+    append_to_latest_migration(&conn,sql)?;
+    Ok(())
+}
+
 #[derive(Debug, Eq)]
 struct ProjectFile {
     file: String,
@@ -283,6 +377,14 @@ fn get_project_files() -> Result<Vec<ProjectFile>> {
     Ok(files)
 }
 
+fn get_latest_project_file() -> Result<Option<String>> {
+    let project_files = get_project_files()?;
+    if project_files.len() == 0 {
+        return Ok(None);
+    }
+    Ok(Some(project_files[project_files.len()-1].file.clone()))
+}
+
 main!(|args: Cli| match args.command {
     Command::Apply { connection_string } => apply(connection_string)?,
     Command::Create { description } => create(description)?,
@@ -292,6 +394,15 @@ main!(|args: Cli| match args.command {
             connection_string,
             table_name,
         } => show_table(connection_string, table_name)?,
+    },
+    Command::Modify { command } => match command {
+        ModifyCommand::AddTable { connection_string,table_name } => add_table(connection_string,table_name)?,
+        ModifyCommand::AddColumn {
+            connection_string,
+            table_name,
+            column_name,
+            type_name
+        } => add_table_column(connection_string,table_name, column_name, type_name)?,
     },
     Command::Plan { connection_string } => plan(connection_string)?,
 });
