@@ -10,13 +10,27 @@ export PIG_CONNECTION_STRING="<your secret connection string>"
 # Create a migration
 pig create "My first migration"
 # Add SQL to apply/revert people table to latest migration
-pig modify add-table people     
+pig modify create-table people     
 # Add SQL to apply/revert name column to latest migration
 pig modify add-column people name TEXT
 # See whats going to be applied
 pig plan                        
 # Apply migrations in current directory
-pig apply                       
+pig apply    
+# See people table on db
+pig show tables
+# See people table's columns
+pig show table people                       
 # Should see nothing to apply
-pig plan                 
+pig plan  
+# Create new migration for dropping people
+pig create "Drop people"       
+# Add drop table command
+pig modify drop-table people  
+# Should only see one migration to apply
+pig plan   
+# Apply only the newest migration
+pig apply
+# Now people table is removed from db
+pig show tables
 ```

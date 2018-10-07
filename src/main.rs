@@ -93,8 +93,17 @@ enum ShowCommand {
 
 #[derive(Debug, StructOpt)]
 enum ModifyCommand {
-    #[structopt(name = "add-table", about = "Append an add table command to current migration.")]
-    AddTable {
+    #[structopt(name = "create-table", about = "Append an create table command to current migration.")]
+    CreateTable {
+        #[structopt(
+            help = "The connection string to use. The environment variable PIG_CONNECTION_STRING can also be used.",
+            short = "c"
+        )]
+        connection_string: Option<String>,
+        table_name: String,
+    },
+    #[structopt(name = "drop-table", about = "Append an drop table command to current migration.")]
+    DropTable {
         #[structopt(
             help = "The connection string to use. The environment variable PIG_CONNECTION_STRING can also be used.",
             short = "c"
@@ -307,9 +316,16 @@ fn is_current_migration_unused(conn:&Connection, file_name:&String) -> Result<bo
     Err(format_err!("Latest migration has invalid prefix."))
 }
 
-fn add_table(connection_string_opt: Option<String>,table_name: String) -> Result<()> {
+fn create_table(connection_string_opt: Option<String>,table_name: String) -> Result<()> {
     let conn = get_connection(connection_string_opt)?;
     let sql = format!("CREATE TABLE IF NOT EXISTS {} ();", table_name);
+    append_to_latest_migration(&conn,sql)?;
+    Ok(())
+}
+
+fn drop_table(connection_string_opt: Option<String>,table_name: String) -> Result<()> {
+    let conn = get_connection(connection_string_opt)?;
+    let sql = format!("DROP TABLE IF EXISTS {};", table_name);
     append_to_latest_migration(&conn,sql)?;
     Ok(())
 }
@@ -389,7 +405,8 @@ main!(|args: Cli| match args.command {
         } => show_table(connection_string, table_name)?,
     },
     Command::Modify { command } => match command {
-        ModifyCommand::AddTable { connection_string,table_name } => add_table(connection_string,table_name)?,
+        ModifyCommand::CreateTable { connection_string,table_name } => create_table(connection_string,table_name)?,
+        ModifyCommand::DropTable { connection_string,table_name } => drop_table(connection_string,table_name)?,
         ModifyCommand::AddColumn {
             connection_string,
             table_name,
