@@ -316,14 +316,7 @@ fn add_table(connection_string_opt: Option<String>,table_name: String) -> Result
 
 fn add_table_column(connection_string_opt: Option<String>,table_name: String, column_name: String, type_name: String) -> Result<()> {
     let conn = get_connection(connection_string_opt)?;
-    let sql = format!("
-IF NOT EXISTS( SELECT NULL
-        FROM INFORMATION_SCHEMA.COLUMNS
-       WHERE table_name = '{}'
-         AND column_name = '{}')  THEN
-         ALTER TABLE `{}` ADD `{}` {};
-END IF;
-    ", table_name, column_name, table_name, column_name, type_name);
+    let sql = format!("ALTER TABLE {} ADD COLUMN IF NOT EXISTS {} {};", table_name, column_name, type_name);
     append_to_latest_migration(&conn,sql)?;
     Ok(())
 }
