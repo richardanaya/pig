@@ -12,7 +12,7 @@ pig create "My first migration"
 # Add SQL to apply/revert people table to latest migration
 pig modify add-table people     
 # Add SQL to apply/revert name column to latest migration
-pig modify add-column name TEXT
+pig modify add-column people name TEXT
 # See whats going to be applied
 pig plan                        
 # Apply migrations in current directory
