@@ -111,6 +111,16 @@ enum ModifyCommand {
         connection_string: Option<String>,
         table_name: String,
     },
+    #[structopt(name = "drop-column", about = "Append an drop table column command to current migration.")]
+    DropColumn {
+        #[structopt(
+            help = "The connection string to use. The environment variable PIG_CONNECTION_STRING can also be used.",
+            short = "c"
+        )]
+        connection_string: Option<String>,
+        table_name: String,
+        column_name: String,
+    },
     #[structopt(name = "add-column", about = "Append an add table column command to current migration.")]
     AddColumn {
         #[structopt(
@@ -318,21 +328,28 @@ fn is_current_migration_unused(conn:&Connection, file_name:&String) -> Result<bo
 
 fn create_table(connection_string_opt: Option<String>,table_name: String) -> Result<()> {
     let conn = get_connection(connection_string_opt)?;
-    let sql = format!("CREATE TABLE IF NOT EXISTS {} ();", table_name);
+    let sql = format!("CREATE TABLE IF NOT EXISTS \"{}\" ();", table_name);
     append_to_latest_migration(&conn,sql)?;
     Ok(())
 }
 
 fn drop_table(connection_string_opt: Option<String>,table_name: String) -> Result<()> {
     let conn = get_connection(connection_string_opt)?;
-    let sql = format!("DROP TABLE IF EXISTS {};", table_name);
+    let sql = format!("DROP TABLE IF EXISTS \"{}\";", table_name);
+    append_to_latest_migration(&conn,sql)?;
+    Ok(())
+}
+
+fn drop_column(connection_string_opt: Option<String>,table_name: String,column_name: String) -> Result<()> {
+    let conn = get_connection(connection_string_opt)?;
+    let sql = format!("ALTER TABLE \"{}\" DROP COLUMN IF EXISTS \"{}\";", table_name, column_name);
     append_to_latest_migration(&conn,sql)?;
     Ok(())
 }
 
 fn add_table_column(connection_string_opt: Option<String>,table_name: String, column_name: String, type_name: String) -> Result<()> {
     let conn = get_connection(connection_string_opt)?;
-    let sql = format!("ALTER TABLE {} ADD COLUMN IF NOT EXISTS {} {};", table_name, column_name, type_name);
+    let sql = format!("ALTER TABLE \"{}\" ADD COLUMN IF NOT EXISTS \"{}\" {};", table_name, column_name, type_name);
     append_to_latest_migration(&conn,sql)?;
     Ok(())
 }
@@ -407,6 +424,7 @@ main!(|args: Cli| match args.command {
     Command::Modify { command } => match command {
         ModifyCommand::CreateTable { connection_string,table_name } => create_table(connection_string,table_name)?,
         ModifyCommand::DropTable { connection_string,table_name } => drop_table(connection_string,table_name)?,
+        ModifyCommand::DropColumn { connection_string,table_name,column_name } => drop_column(connection_string,table_name,column_name)?,
         ModifyCommand::AddColumn {
             connection_string,
             table_name,

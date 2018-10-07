@@ -4,7 +4,7 @@ This tool was created to simplify working with PostgreSQL for every day db tasks
 
 # What problem does this solve?
 
-Most of the time when working with SQL databases for personal projects, I'm only doing a few things. Managing tables in basic ways and applying those changes to one or more servers. These changes can been seen as a date ordered sequence of SQL files to execute on your database. Pig stores what latest file has been applied on your db so next time you apply the migrations, it only uploads the newest ones. I added a few helper utilities for quickly adding common SQL commands to your current editing migration (create table, add column, drop table). You may face other challenges with migrations in real world projects, but this tool might offer you a quick way to get going with SQL and having fun.
+Most of the time when working with SQL databases for personal projects, I'm only doing a few things. Managing tables in basic ways and applying those changes to one or more servers. These changes can been seen as a date ordered sequence of SQL files to execute on your database. Pig stores what latest file has been applied on your db so next time you apply the migrations, it only executes the newest ones in order. I added a few helper utilities for quickly adding common SQL commands to your current editing migration. You may face other challenges with migrations in real world projects, but this tool might offer you a quick way to get going with SQL and having fun.
 
 # Example Usage
 
